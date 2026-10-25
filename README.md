@@ -6,13 +6,15 @@ UN-Regelungen ableitet, jeweils mit Regelung, Version und Seite. Details: [docs/
 
 ## For the jury (English)
 
+> **Two million cars were recalled for a font size. BarelyLegal reads every regulation so your part doesn't make headlines.**
+
 **BarelyLegal · certreq** turns a vehicle-part specification (Markdown) and/or exploded-view drawing (PNG) into atomic
 engineering requirements under UN Regulations, each cited to regulation, version, page and paragraph. A second mode
 compares two versions of a regulation and reports which requirements are modified, removed or added, and why.
 
 | Case (Certivity platform) | Result |
 |---|---|
-| Held-out front bumper, main goal | F2 0.80 (precision 0.61, recall 0.87); regulations 7 of 7, none extra |
+| Held-out front bumper, main goal | F2 0.80 (precision 0.62, recall 0.86); regulations 7 of 7, none extra |
 | Held-out regulation change (UN R171) | flag recall 0.95, change accuracy 0.84 |
 | Worked example rear lamp | F2 0.76 |
 
@@ -37,6 +39,18 @@ tree (`pdf.py`), per-paragraph LLM extraction (`extract.py`, `llmextract.py`), r
 LLM judge and evaluation (`judge.py`, `evaluate.py`). Working notes are in German: decisions in
 [docs/STATUS.md](docs/STATUS.md), measured lessons in [docs/LEARNINGS.md](docs/LEARNINGS.md), history in
 [docs/LOG.md](docs/LOG.md).
+
+**Explore our results without an API key** (~5 min, Python 3.10+). The dashboard opens every product once with its best
+saved result: requirements with the highlighted PDF paragraph, the regulation choice with reasons, and the
+regulation-change view.
+
+```bash
+git clone https://github.com/jonathandemir/barelylegal-certivity.git && cd barelylegal-certivity
+git clone https://github.com/Certivity/industrial-ai-hackathon.git vendor/industrial-ai-hackathon
+(cd vendor/industrial-ai-hackathon && python3 tools/fetch_regulations.py)   # regulation PDFs for the evidence view
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python demo/server.py      # → http://127.0.0.1:8765  (Ctrl+K search, "+" checks your own spec/drawing)
+```
 
 ## Für Teammitglieder
 

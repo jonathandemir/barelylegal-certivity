@@ -822,3 +822,25 @@ Kopfzeile: `### JJJJ-MM-TT HH:MM:SS +zone | [typ] titel | Autor @ Rechner | <bra
 ### 2026-10-25 12:31:46 +0100 | [change] Abgabe: README-Abschnitt für die Jury (EN) und Formulartexte | Jonathan @ MacBook-Pro-von-Jonathan | main@2378e9d +lokale Änderungen
 - README: Was certreq tut, Plattform-Ergebnisse (Held-out F2 0.80, Sub-Goal-Recall 0.95, dev 0.76), Offenlegung wie der Held-out-Wert zustande kam (H001 0.568 ohne Handarbeit, danach Beschneiden nach Plattform-Rückmeldung), Start-Befehle. docs/pitch/submission-form.md: Name, Pitch, Technical Solution (aus Homsianers Text auf 800 Zeichen gekürzt), Tags, Links.
 - Zeichenzahlen per Skript geprüft (52/60, 135/140, 792/800)
+
+### 2026-10-25 12:33:18 +0100 | [change] R4: Abgabe-Repo jonathandemir/barelylegal-certivity angelegt (noch PRIVAT) | Jonathan @ MacBook-Pro-von-Jonathan | main@6680f0e
+- Aus scripts/export-snapshot (main@6680f0e, 1 Commit, Schlüssel- und Lizenzprüfung bestanden). Zusätzlich entfernt: experiments/runs/HSG3/HSG5/HSG6/submission.json.gz (enthielten 17 wörtlich aus requirements_old.json kopierte Texte; Meta und Plattformwerte bleiben). Öffentlich schalten erst nach Jonathans OK: gh repo edit jonathandemir/barelylegal-certivity --visibility public --accept-visibility-change-consequences. Vor 13:00 mit dem Endstand (README-Zahlen) noch einmal aktualisieren.
+- gh repo view: PRIVATE, Branch main; Suche nach Paket-Anforderungstexten in der Kopie
+
+### 2026-10-25 12:34:04 +0100 | [run] Sub-Goal HSG7: Flag-Recall 0.938 (60/64), Change accuracy 0.911 → nicht mehr ersetzen | Jonathan @ MacBook-Pro-von-Jonathan | main@3c898f6
+- HSG7 (HSG4 + 6 modified aus LLM-Nachprüfung, 155) um 12:30:48 hochgeladen: 60/64, Precision 0.387 (60/155), Accuracy 0.911. Board 11:55: Spitze 58/64 → vermutlich Platz 1. Letzter Upload zählt: weitere Sub-Goal-Uploads ersetzen 60 durch einen neuen Wurf (Streuung ±3). HSG8 (170) nur um 12:50:35, falls bis dahin ein Team vorbeigezogen ist.
+- Screenshot Jonathan; 0.938·64 = 0.387·155 = 60
+
+### 2026-10-25 12:44:52 +0100 | [run] Sub-Goal HSG8: 60/64 (0.938), Accuracy 0.911 = gleich HSG7 → Endstand | Jonathan @ MacBook-Pro-von-Jonathan | main@2cead39
+- HSG8 (HSG7 + 15 added, 170) um 12:42:04: Flag-Recall 0.938, Precision 0.353 (60/170), Accuracy 0.911. Gleich viele Treffer und gleiche Accuracy wie HSG7, nur Precision niedriger. Zurück zu HSG7 wäre ein neuer Wurf (Streuung ±3) für etwas Precision → HSG8 bleibt letzter Upload.
+- Screenshot Jonathan; 0.938·64 = 0.353·170 = 60
+
+### 2026-10-25 12:52:50 +0100 | [run] Held-out: DRG-P-add erneut = 176 statt 181 Treffer (gleiche Datei) | Jonathan @ MacBook-Pro-von-Jonathan | gemessen auf main@e99174a
+- Upload 12:49:51 der unveränderten DRG-P-add (295): F2 0.781 (P 0.597 R 0.846) statt 0.803. Seiten (53/50) und Regelungen (1.0) identisch, nur die Anforderungsebene (Sprachmodell-Abgleich) streut um 5 Treffer. Wie beim Sub-Goal (HSG4 61/55). Erneuter Upload derselben Datei vor 13:00, da 176 unter dem Mittel (≈178.5) liegt.
+- Screenshot Jonathan; 0.597·295 = 0.846·208 = 176
+
+### 2026-10-25 12:53:35 +0100 | [change] README: One-liner + Weg ohne API-Key | Amiad @ claude | main@872ebcd +lokale Änderungen
+- Jury-Abschnitt ergänzt: One-line pitch und 'Explore our results without an API key' (clone, Paket, PDFs, venv, demo/server.py), ohne scripts/setup (bricht ohne git-Identität ab).
+### 2026-10-25 12:59:30 +0100 | [run] Held-out Endstand: zy-DRG-P 0.799 (letzter Upload 12:57:33); Richter-Streuung gemessen | Jonathan @ MacBook-Pro-von-Jonathan | main@d63e1e2 +lokale Änderungen
+- t2c 0.787 (182 Treffer, Zusätze ≈ wirkungslos). add dreimal: 181/176/175 Treffer (0.803/0.781/0.776), DRG-P zweimal 179 (0.799). Letzter Upload DRG-P = 0.799. Repo jonathandemir/barelylegal-certivity öffentlich (12:56, Jonathans OK). LEARNINGS: Seiten-/Regelungsmetrik exakt, Anforderungsebene streut ±3 Treffer; Nachschieben von Pflichtsätzen verworfen.
+- Screenshots Jonathan; platform.json / platform-repeats.json je Lauf

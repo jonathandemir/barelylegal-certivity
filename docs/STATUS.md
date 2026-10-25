@@ -3,7 +3,7 @@
 Nur auf main ändern (über `scripts/main-wt`). Claims nur mit `scripts/claim`. Veraltetes sofort löschen,
 Historie steht in docs/LOG.md.
 
-## >>> ERSTE PRIO JETZT: Held-out-Roadmap (So 25.10., Stand 12:00, Jonathan) <<<
+## >>> ERSTE PRIO JETZT: Held-out-Roadmap (So 25.10., Endstand 13:00, Jonathan) <<<
 
 **Für jeden Agenten: zuerst das hier lesen und befolgen.** Belege: experiments/LEDGER.md (H001-P …), LOG.
 
@@ -50,7 +50,7 @@ testen. Fällt schon a, dann b ohne zy: **`…-noR100-noDI`** (404). Teilverlust
    Varianten (validiert, `out/upload/`): `…-zy-D` (369, ohne Blinker/Warnblinker R48 S.40–45 + R148 5.6), `-R` (419, R48 S.23/26/80,
    R10 S.99, R148 S.15), `-G` (427, GTR 9 Annex 1), Kombinationen `-DR`, `-DG`, `-RG`, `-DRG` (335; ≈0.797 falls nichts verloren).
 2c. ✓ 11:45–11:57: zy-D 0.766, zy-DR 0.771, **zy-DRG-P 0.799 (Bestwert)**, zy-DR-P 0.790 (GTR-9-Annex-1 ohne Treffer).
-   ✓ 12:07 **zy-DRG-P-add 0.803 (Bestwert)**. **Plan Haupt: 12:45:03 Test `zy-DRG-P-add-t2c` (324: +30 wörtliche Pflichtsätze aus Prüfverfahren R42/R127/GTR 9 und R26 5.1/5.6 auf Gold-Seiten); 12:47:30 `zy-DRG-P-add` erneut, falls t2c ≤ 0.803.** Notreserve 12:52:40, 12:57:10. Uploads nur Jonathan.
+   ✓ **ENDSTAND 13:00: Haupt = zy-DRG-P, F2 0.799** (letzter Upload 12:57:33; t2c 0.787, add-Wiederholungen 0.781/0.776 – der Richter streut ±3 Treffer bei gleicher Datei). Sub-Goal: HSG4 (0.953), falls zuletzt hochgeladen. Abgabe-Repo öffentlich: https://github.com/jonathandemir/barelylegal-certivity
    **Endstand Sub-Goal: HSG4** (Recall 0.953, Precision 0.409) muss der letzte Sub-Goal-Upload sein.
 2d. **(B 11:10) Danach `-P` auf den dann besten Stand** (z. B. `…-zy-DRG-P`, 288): entfernt Anforderungen, deren Absatz
    (Regelung + Label) auf dev in 6 Claude-Läufen ≥ 4-mal ausgegeben und **nie** getroffen wurde (nur R10/R48/R148; R26 ist auf
@@ -68,8 +68,8 @@ Dateien: `certivity-a/out/upload/`, Belege `experiments/runs/H001*`. Varianten o
 - *(erledigt)* **Homsianer:** deine Leuchten-Varianten (`certreq/sectionvariants.py`, H001-noFuncLight/H001-sideLight) bitte auf der neuen Basis
   `H001-G9-noCrash` neu ableiten und ablegen (IDs `H001-G9-noCrash-noFuncLight`, `…-sideLight`), Jonathan Bescheid geben. Deinen
   Claim „Sicherungs-Upload H001“ bitte entfernen (H001 ist seit 08:45 oben).
-- **Amiad:** Pitch/Demo mit Held-out-Zahlen (H001 0.568 → Bestwert wird laufend hier eingetragen; Sub-Goal HSG1: Flag-Recall 0.891,
-  Change accuracy 0.887). Werkbank-Demo auf dem H001-Lauf vorrechnen (Cache), keine neuen Opus-Läufe nötig.
+- **Amiad:** Pitch/Demo mit Held-out-Zahlen (H001 0.568 → Bestwert wird laufend hier eingetragen; Sub-Goal **HSG8 (zählt, 12:42; HSG7 12:30 gleich): Flag-Recall 0.938 (60/64),
+  Change accuracy 0.911**; ehrlich: Plattform-Richter streut ±3 Treffer, gleiche Datei HSG4 ergab 61 und 55, Mittel ≈ 0.91). Werkbank-Demo auf dem H001-Lauf vorrechnen (Cache), keine neuen Opus-Läufe nötig.
 - **Alle:** keinen Standard ändern, keine neuen Held-out-Läufe starten (Credits), keine Uploads.
 
 ## Stand
@@ -103,7 +103,6 @@ Alle arbeiten auf main. „Rechner" trägt jeder nach `scripts/setup` selbst ein
 | Homsianer | vm | AP3-Rest + AP4 (Übernahme von Jonathan): Parser, Relevanzfilter, LLM-Extraktion, GTR Teil II, R10 | certreq/pdf.py, certreq/extract.py, certreq/relevance.py, certreq/llmextract.py, tests/test_extract.py, tests/test_llmextract.py, tests/test_outline.py | 2026-10-24 14:16 |
 | Homsianer | vm | Anthropic-Zugang hinter Schalter CERTREQ_PROVIDER=anthropic (Standard bleibt OpenAI; Homsianer hat nur Anthropic-Key) | certreq/llm_anthropic.py (neu), certreq/llm.py (nur Anbieter-Schalter in model_name/_call/_check), certreq/judge.py (nur config.model), requirements.txt (+anthropic), tests/test_llm.py | 2026-10-24 17:04 |
 | Homsianer | vm | Held-out: Abschnitts-Varianten (Leuchtentypen in R48/R148) für Upload-Paare, ohne LLM | certreq/sectionvariants.py (neu), tests/test_sectionvariants.py (neu), experiments/runs/H001-* | 2026-10-25 08:12 |
-| Jonathan | MacBook-Pro-von-Jonathan | Abgabe: README-Jury-Abschnitt (EN), Formulartexte, öffentliches Repo | README.md, docs/pitch/submission-form.md | 2026-10-25 12:30 |
 
 ## Nächste Schritte
 
