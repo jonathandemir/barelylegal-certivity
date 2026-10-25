@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Einmalige Einrichtung eines Rechners. Idempotent, kann jederzeit erneut laufen.
+#
+#   scripts/setup [--no-pdfs] [--no-venv]
+#
+# 1. prüft git user.name / user.email
+# 2. stellt den Checkout auf main (alle arbeiten auf main, AGENTS.md §4) und holt den aktuellen Stand
+# 3. holt das Teilnehmerpaket nach vendor/industrial-ai-hackathon (gitignored, darf nicht ins Repo)
+#    und lädt die Regulierungs-PDFs (~220 MB, Links laufen nach dem Event ab)
+# 4. legt .venv an und installiert requirements.txt (pymupdf, jsonschema, pytest)
+# 5. legt im Oberordner eine CLAUDE.md an, die auf dieses Repo verweist (nur wenn dort noch keine liegt)
+. "$(dirname "$0")/lib.sh"
+
+PKG_URL="${CERTIVITY_PKG_URL:-https://github.com/Certivity/industrial-ai-hackathon.git}"
+PKG_DIR="$REPO_ROOT/vendor/industrial-ai-hackathon"
+
+pdfs=1; venv=1
+for a in "$@"; do
+  case "$a" in
+    --no-pdfs) pdfs=0 ;;
+    --no-venv) venv=0 ;;
+    -*) die "Unbekannte Option $a" ;;
+    *) warn "Argument \"$a\" wird ignoriert: es gibt keine persönlichen Branches mehr, alle arbeiten auf main." ;;
+  esac
+done
+
+# 1. Identität
+[ -n "$(git config user.name)" ]  || die "git config --global user.name \"Vorname Nachname\" fehlt."
+[ -n "$(git config user.email)" ] || die "git config --global user.email \"du@example.com\" fehlt."
+ok "Git-Identität: $(me) <$(git config user.email)> auf $(host)"
+
+# 2. main
+fetch_origin 60 || die "git fetch fehlgeschlagen. Zugriff auf das GitHub-Repo vorhanden?"
+cur=$(current_branch || echo "")
+if [ "$cur" != main ]; then
+  [ -z "$(dirty_tracked)" ] || die "Uncommittete Änderungen auf ${cur:-detached}. Erst committen, dann setup erneut."
+  git switch --quiet main 2>/dev/null || git switch --quiet --track -c main origin/main || die "Konnte nicht auf main wechseln."
+  note "Auf main gewechselt (vorher: ${cur:-detached})."
+fi
+if [ -z "$(dirty_tracked)" ]; then
+  integrate_upstream || die "Konnte origin/main nicht holen (siehe oben)."
+fi
+ok "Checkout auf main@$(short_head)."
+
+# 3. Teilnehmerpaket + PDFs
+mkdir -p "$REPO_ROOT/vendor"
+if [ -d "$PKG_DIR/.git" ]; then
+  git -C "$PKG_DIR" pull --quiet --ff-only || warn "Paket konnte nicht aktualisiert werden ($PKG_DIR)."
+else
+  git clone --quiet "$PKG_URL" "$PKG_DIR" || die "Klonen von $PKG_URL fehlgeschlagen."
+fi
+ok "Teilnehmerpaket: $PKG_DIR @ $(git -C "$PKG_DIR" rev-parse --short HEAD)"
+if command -v python3 >/dev/null 2>&1; then
+  if [ "$pdfs" -eq 1 ]; then
+    note "Lade Regulierungs-PDFs (~220 MB) ..."
+    if ! (cd "$PKG_DIR" && python3 tools/fetch_regulations.py); then
+      # macOS + python.org-Python hat keine CA-Zertifikate (CERTIFICATE_VERIFY_FAILED).
+      # Dann das certifi-Bündel nur für diesen Aufruf nutzen, ohne Systemänderung.
+      ca=$(python3 -m certifi 2>/dev/null || true)
+      if [ -z "${SSL_CERT_FILE:-}" ] && [ -n "$ca" ]; then
+        note "Erneuter Versuch mit den certifi-Zertifikaten (SSL_CERT_FILE=$ca) ..."
+        (cd "$PKG_DIR" && SSL_CERT_FILE="$ca" python3 tools/fetch_regulations.py) \
+          || warn "PDF-Download unvollständig, auch mit certifi. Siehe vendor/industrial-ai-hackathon/README.md §1, dann scripts/setup erneut."
+      else
+        warn "PDF-Download unvollständig. Bei CERTIFICATE_VERIFY_FAILED: python3 -m pip install --user certifi oder vendor/industrial-ai-hackathon/README.md §1, dann scripts/setup erneut."
+      fi
+    fi
+  fi
+  # 4. venv mit den Abhängigkeiten der Pipeline (scripts/sync führt damit vor jedem Code-Push die Tests aus)
+  if [ "$venv" -eq 1 ]; then
+    if [ ! -x "$REPO_ROOT/.venv/bin/python" ]; then
+      python3 -m venv "$REPO_ROOT/.venv" || warn "python3 -m venv fehlgeschlagen."
+    fi
+    if [ -x "$REPO_ROOT/.venv/bin/python" ] && "$REPO_ROOT/.venv/bin/python" -m pip install --quiet --disable-pip-version-check -r "$REPO_ROOT/requirements.txt"; then
+      ok "venv: $REPO_ROOT/.venv (requirements.txt installiert)"
+    else
+      warn "venv/requirements unvollständig. Von Hand: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
+    fi
+  fi
+else
+  warn "python3 fehlt. Pipeline, validate.py und fetch_regulations.py brauchen Python 3."
+fi
+
+# 5. CLAUDE.md im Oberordner
+PARENT=$(dirname "$REPO_ROOT"); REPO_NAME=$(basename "$REPO_ROOT")
+if [ ! -e "$PARENT/CLAUDE.md" ]; then
+  cat > "$PARENT/CLAUDE.md" <<EOF
+# Hinweis für Sessions in diesem Ordner
+
+Diese Datei gilt nur für das Certivity-Hackathon-Repo \`./$REPO_NAME/\`. Geht es um ein anderes Projekt in diesem Ordner, ignoriere sie.
+
+Geht es um Certivity / den Hackathon: arbeite in \`$REPO_NAME/\` und folge \`$REPO_NAME/AGENTS.md\`.
+Die Hooks des Repos (Sessionstart, Stop-Check) feuern nicht, wenn die Session hier im Oberordner gestartet wurde. Darum selbst:
+- zu Beginn: \`$REPO_NAME/scripts/session-start\` ausführen, \`$REPO_NAME/AGENTS.md\` und \`$REPO_NAME/docs/CONTEXT.md\` lesen
+- vor dem Aufhören: \`$REPO_NAME/scripts/stop-check\`
+Besser: die Session direkt in \`$REPO_NAME/\` starten.
+EOF
+  ok "Oberordner-CLAUDE.md angelegt: $PARENT/CLAUDE.md"
+elif ! grep -q "$REPO_NAME/AGENTS.md" "$PARENT/CLAUDE.md"; then
+  warn "$PARENT/CLAUDE.md existiert schon und verweist nicht auf dieses Repo. Bitte selbst ergänzen:"
+  note "    Geht es um Certivity: arbeite in $REPO_NAME/, folge $REPO_NAME/AGENTS.md, starte mit $REPO_NAME/scripts/session-start."
+fi
+
+note ""
+ok "Fertig. Claude Code jetzt direkt in $REPO_ROOT starten; der SessionStart-Hook zeigt STATUS und LOG."

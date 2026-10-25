@@ -1,0 +1,209 @@
+"""Regulierungs-PDF → nummerierte Absätze mit Seite und Gliederung.
+
+Die PDFs sind von Certivity gerendert: Kopfzeile „UN R148, version 1.6.0 | page 14 of 48", jeder Absatz beginnt
+mit seiner Nummer („4.8.1.7. Text"). Absatzlabels folgen der Schreibweise der Referenz: „4.8.1.7",
+„Annex 9 3.1", „Annex 4 Part 1 1.2". Appendices werden als „Annex 4 Appendix 1 2.1" gelabelt, Anhänge zum Haupttext
+(vor Annex 1, z. B. UN R10 Appendix 1–8) als „Appendix 1 23" (Format der Referenz dafür unbekannt; Seite zählt
+ohnehin, wenn das Label nicht passt). Ohne diese Erkennung liefen sie als Haupttext weiter: Labels kollidierten
+mit „1. Scope", und R10 „23." reichte über S. 29–35.
+
+Gliederung (AP3): Überschriften sind typografisch nicht abgesetzt (alles TimesNewRoman 10.5), sie werden am Text
+erkannt: kurze Zeile ohne Verb und Doppelpunkt, danach Absatzende oder ein neuer Satz („6.10.1. Presence" /
+„Devices of R … : Mandatory"). Jeder Absatz kennt seine eigene Überschrift (`title`) und die der umgebenden
+Abschnitte (`headings`, außen zuerst, inkl. Anhang- und Teil-Titel).
+
+GTRs (UN GTR 9) bestehen aus „I. Statement of technical rationale and justification" (Begründung, unverbindlich,
+GTR 9 S. 1–70, eigene Nummerierung 1., 2. …) und „II. Text of the Regulation" (verbindlich, ab S. 71). Absätze aus
+Teil I tragen den Titel von Teil I als äußersten Kontext (RATIONALE_TITLE), damit der Relevanzfilter `rationale`
+sie erkennt; Teil II wird wie jede Regelung geparst.
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+
+HEADER_RE = re.compile(r"^UN .+, version \S+ \| page \d+ of \d+$")
+# Absatzbeginn: Nummer mit abschließendem Punkt, dann Text. Abbildungsnummern ("16") und Messwerte ("13.5 V") fallen raus.
+PARA_RE = re.compile(r"^(\d{1,2}(?:\.\d{1,2}){0,7})\.\s+(\S.*)$")
+# Nummer ohne abschließenden Punkt („5.1.4.1 An ACPE intervention …", R175 latest S. 5): nur mehrstufig, vor einem
+# großgeschriebenen Wort und nur als direkter Nachfolger des laufenden Absatzes (_is_successor), sonst Messwert.
+PARA_NODOT_RE = re.compile(r"^(\d{1,2}(?:\.\d{1,2}){1,7})\s+([A-Z(][A-Za-z(]\S*.*)$")
+UNITS = {"Hz", "MHz", "GHz", "Nm", "Pa", "MPa", "Cd", "Lx", "Ah", "Wh", "VA"}
+# Anhang-Überschrift: "Annex 10 Method(s) ...", "Annex 4 - Appendix 1", "Annex 2A Information ...", "Annex 3"
+ANNEX_RE = re.compile(r"^Annex\s+(\d{1,2})([A-Z]?)(?:\s*[-–]\s*Appendix\s+(\d{1,2}))?(?:\s+[A-Z(\"].*)?$")
+# Anhang zum Haupttext (vor Annex 1): „Appendix 6 Electrical/electronic sub-assembly (ESA) - Broadband …" (UN R10 S. 28–35).
+# Nur der Reihe nach ab 1 und mit großgeschriebenem Titel; Verweise („Appendix 1 of Annex 4", „Appendix 8, paragraph 3.",
+# „Appendix 3 may be …") und Tabellenzellen („Appendix 2") fallen raus.
+MAIN_APPENDIX_RE = re.compile(r"^Appendix\s+(\d{1,2})(?![\d,.])\s*[-–:]?\s*([A-Z].*)$")
+PART_RE = re.compile(r"^Part\s+(\d{1,2})\s*[-–:]\s*(\S.*)$")
+ANNEX_TITLE_RE = re.compile(r"^Annex\s+\d{1,2}[A-Z]?(?:\s*[-–]\s*Appendix\s+\d{1,2})?\s*(.*)$")
+# Eine Überschrift enthält kein Verb; diese Wörter kommen in Sätzen vor, in Überschriften der Regelungen nicht.
+VERB_RE = re.compile(r"\b(shall|must|may|should|will|can|is|are|be|was|were|has|have|need|applies|apply)\b", re.I)
+# Satzanfänge und -enden, die bei verblosen Satzfragmenten auftreten („Within 60 seconds of … by paragraph").
+SENTENCE_START_RE = re.compile(r"^(If|When|Where|Whenever|Within|Unless|Except|Annex|Table|Figure|The|This|These|"
+                               r"Each|Every|Any|No|Require|Requires)\b")
+# GTR-Teile: I = Begründung (unverbindlich), II = Regelungstext. Nur diese beiden Titel, nicht die römisch
+# nummerierten Kapitel innerhalb von Teil I („II. SUMMARY …", „III. PROCEDURAL BACKGROUND").
+GTR_PART_RE = re.compile(r"^(I|II)\.\s+(Statement of technical rationale and justification|Text of the Regulation)\s*$", re.I)
+RATIONALE_TITLE = "Statement of technical rationale and justification"
+DANGLING_END_RE = re.compile(r"\b(of|the|and|or|to|by|with|in|for|a|an|on|at|from|paragraph|paragraphs|than)$", re.I)
+
+
+@dataclass
+class Paragraph:
+    label: str  # wie in der Referenz, z. B. "4.8.1.7" oder "Annex 9 3.1"
+    number: str  # nur die Nummer, z. B. "3.1"
+    page: int  # Startseite, 1-basiert
+    end_page: int
+    text: str
+    title: str = ""  # Überschrift am Absatzanfang, z. B. "Rear position lamp" (R48 6.10.), sonst ""
+    headings: tuple[str, ...] = ()  # Überschriften der umgebenden Abschnitte, außen zuerst
+    context: tuple[str, ...] = ()  # davon nur Anhang- und Teil-Titel (Anfang von headings)
+
+    @property
+    def in_annex(self) -> bool:
+        return self.label.startswith("Annex ")
+
+    @property
+    def body(self) -> str:
+        """Text ohne die eigene Überschrift."""
+        return self.text[len(self.title):].lstrip(" .") if self.title else self.text
+
+
+def _context_label(annex: str | None, appendix: str | None, part: str | None) -> str:
+    if annex is None:
+        return f"Appendix {appendix} " if appendix else ""  # Anhang zum Haupttext
+    label = f"Annex {annex}"
+    if appendix:
+        label += f" Appendix {appendix}"
+    if part:
+        label += f" Part {part}"
+    return label + " "
+
+
+def _is_next_annex(m: re.Match, annex_no: int, annex: str | None) -> bool:
+    """Anhänge kommen der Reihe nach. Tabellenzellen wie „Annex 10 (values in" oder ein einzelnes „Annex 5"
+    mitten im Haupttext würden sonst den Kontext kapern (gesehen in UN R150 S. 5 und 14)."""
+    num, letter, appendix = int(m.group(1)), m.group(2), m.group(3)
+    if annex_no < num <= annex_no + 2:  # nächster Anhang, ein reservierter darf fehlen
+        return True
+    return num == annex_no and bool(appendix or (letter and f"{num}{letter}" != annex))
+
+
+def _is_successor(prev: str, number: str) -> bool:
+    """number folgt direkt auf prev: erstes Kind (5.1.4 → 5.1.4.1) oder nächster auf einer Ebene (5.1.4.1 → 5.1.4.2, 5.2)."""
+    p, n = [int(x) for x in prev.split(".")], [int(x) for x in number.split(".")]
+    return n == p + [1] or any(n == p[:k] + [p[k] + 1] for k in range(len(p)))
+
+
+def _looks_like_title(s: str) -> bool:
+    words = s.split()
+    return (0 < len(words) <= 15 and s[0].isupper() and ":" not in s and not s.endswith((",", ";"))
+            and "." not in s.rstrip(".") and not VERB_RE.search(s) and not SENTENCE_START_RE.match(s)
+            and not DANGLING_END_RE.search(s.rstrip(". ")))
+
+
+def _title(lines: list[str]) -> str:
+    """Überschrift am Absatzanfang. Eine umgebrochene Überschrift (zweite Zeile klein) zählt nur, wenn der Absatz
+    danach endet; sonst ist es ein umgebrochener Satz."""
+    if len(lines) == 1 or not lines[1][:1].islower():
+        cand = lines[0]
+        if len(lines) == 2 and DANGLING_END_RE.search(cand.rstrip(". ")):  # „… generated by" / „ESAs on 12/24 V …"
+            cand = _join(lines)
+    elif len(lines) == 2:
+        cand = _join(lines)
+    else:
+        return ""
+    return cand.rstrip(". ") if _looks_like_title(cand) else ""
+
+
+def _join(lines: list[str]) -> str:
+    out = lines[0]
+    for line in lines[1:]:
+        out += line if out.endswith("-") and not out.endswith(" -") else " " + line
+    return out
+
+
+def _add_headings(paras: list[Paragraph], context_titles: list[tuple[str, ...]]) -> None:
+    """headings = Anhang-/Teil-Titel + Titel der zuletzt gesehenen Absätze mit Präfix-Nummer (6 → 6.10 → 6.10.5)."""
+    last: dict[tuple[str, str], str] = {}
+    for p, ctx_titles in zip(paras, context_titles):
+        ctx = p.label[: len(p.label) - len(p.number)]
+        nums = p.number.split(".")
+        own = [last.get((ctx, ".".join(nums[:i])), "") for i in range(1, len(nums))]
+        p.context = ctx_titles
+        p.headings = ctx_titles + tuple(t for t in own if t)
+        last[(ctx, p.number)] = p.title
+
+
+@lru_cache(maxsize=None)
+def parse_pdf(path: str | Path) -> tuple[Paragraph, ...]:
+    import pymupdf  # erst hier importiert, damit der Rest ohne PyMuPDF testbar bleibt
+
+    paras: list[Paragraph] = []
+    lines_of: list[list[str]] = []  # Rohzeilen je Absatz, für die Überschriftenerkennung
+    context_of: list[tuple[str, ...]] = []  # Anhang- und Teil-Titel je Absatz
+    annex = appendix = part = None
+    annex_no = 0
+    cur: Paragraph | None = None
+    titles: dict[str, list[str]] = {"annex": [], "part": []}  # Zeilen der aktuellen Anhang-/Teil-Überschrift
+    open_title: str | None = None  # Überschrift, die noch umbrechen kann
+    rationale = False  # in Teil I einer GTR (Begründung)
+    with pymupdf.open(str(path)) as doc:
+        for pno, page in enumerate(doc, start=1):
+            for raw in page.get_text().splitlines():
+                line = raw.strip()
+                if not line or HEADER_RE.match(line):
+                    continue
+                m = GTR_PART_RE.match(line)
+                if m:
+                    rationale, cur, open_title = m.group(1) == "I", None, None
+                    continue
+                m = ANNEX_RE.match(line)
+                if m and _is_next_annex(m, annex_no, annex):
+                    rest = ANNEX_TITLE_RE.match(line).group(1)
+                    if m.group(3) and int(m.group(1)) == annex_no:  # Appendix: Titel des Anhangs bleibt außen
+                        titles, open_title = {"annex": titles["annex"], "part": [rest]}, "part"
+                    else:
+                        titles, open_title = {"annex": [rest], "part": []}, "annex"
+                    annex_no = int(m.group(1))
+                    annex, appendix, part = m.group(1) + m.group(2), m.group(3), None
+                    cur = None
+                    continue
+                m = MAIN_APPENDIX_RE.match(line)
+                if m and annex is None and int(m.group(1)) == int(appendix or 0) + 1:
+                    appendix, cur, open_title = m.group(1), None, "annex"
+                    titles = {"annex": [m.group(2)], "part": []}
+                    continue
+                m = PART_RE.match(line)
+                if m and annex is not None:
+                    part, cur, open_title = m.group(1), None, "part"
+                    titles["part"] = [m.group(2)]
+                    continue
+                m = PARA_RE.match(line)
+                if not m and cur is not None:
+                    m = PARA_NODOT_RE.match(line)
+                    if m and (m.group(2).split()[0] in UNITS or not _is_successor(cur.number, m.group(1))):
+                        m = None
+                if m:
+                    number = m.group(1)
+                    cur = Paragraph(_context_label(annex, appendix, part) + number, number, pno, pno, m.group(2))
+                    paras.append(cur)
+                    lines_of.append([m.group(2)])
+                    context_of.append(((RATIONALE_TITLE,) if rationale else ())
+                                      + tuple(_join(t) for t in titles.values() if t and t[0]))
+                    open_title = None
+                elif cur is not None:
+                    cur.text += " " + line
+                    cur.end_page = pno
+                    lines_of[-1].append(line)
+                elif open_title and line[:1].islower() and len(titles[open_title]) < 3:  # umgebrochener Titel
+                    titles[open_title].append(line)
+                else:
+                    open_title = None
+    for p, lines in zip(paras, lines_of):
+        p.title = _title(lines)
+    _add_headings(paras, context_of)
+    return tuple(paras)
