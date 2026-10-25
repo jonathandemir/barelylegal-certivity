@@ -3,6 +3,26 @@
 Nur auf main ändern (über `scripts/main-wt`). Claims nur mit `scripts/claim`. Veraltetes sofort löschen,
 Historie steht in docs/LOG.md.
 
+
+## >>> UMZUG So 25.10. ~13:50: dieses Repo ist ab jetzt das Arbeits-Repo <<<
+
+- **Abgegeben** wurde https://github.com/jonathandemir/certivity-hackathon. Es ist seit 13:45 **archiviert** (öffentlich, nur
+  lesbar), damit sich der abgegebene Stand nicht mehr ändert. Pushes dorthin scheitern absichtlich. Die volle Git-Historie
+  bis zur Abgabe liegt dort.
+- **Weitergearbeitet wird hier**: https://github.com/jonathandemir/barelylegal-certivity, Branch `main`. Der erste Commit hier
+  (`Arbeitsstand übernommen`) ist inhaltlich identisch mit dem letzten Stand des Abgabe-Repos (`d6b235b`). Die Historie ist
+  neu, weil GitHub die alten Commits mit Omars (gesperrtem) Key nicht annimmt. Branch `abgabe-snapshot` = alter Snapshot.
+- **Jeder Mensch und jeder Agent mit einem alten Checkout** (Ordner `certivity`, `certivity-a`, `certivity-hackathon` …):
+  dort nicht mehr arbeiten, `scripts/sync` scheitert dort. Stattdessen neu klonen, im Ordner neben dem alten:
+  ```bash
+  git clone https://github.com/jonathandemir/barelylegal-certivity.git && cd barelylegal-certivity
+  cp -cR ../<alter-ordner>/vendor/industrial-ai-hackathon vendor/   # macOS; Linux: cp -r … (sonst lädt scripts/setup neu)
+  ln -s ../<alter-ordner>/.env.local .env.local                     # Keys weiter aus der alten Datei, nie committen
+  scripts/setup                                                     # .venv, prüft Paket
+  ```
+  Ungepushte Commits aus dem alten Checkout mitnehmen: dort `git format-patch origin/main -o /tmp/umzug`, hier
+  `git am /tmp/umzug/*.patch`. Danach wie gewohnt Claim, Log, `scripts/sync` (AGENTS.md).
+
 ## >>> ERSTE PRIO JETZT: Held-out-Roadmap (So 25.10., Endstand 13:00, Jonathan) <<<
 
 **Für jeden Agenten: zuerst das hier lesen und befolgen.** Belege: experiments/LEDGER.md (H001-P …), LOG.

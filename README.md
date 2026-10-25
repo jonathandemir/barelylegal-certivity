@@ -55,7 +55,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ## Für Teammitglieder
 
 ```bash
-git clone https://github.com/jonathandemir/certivity-hackathon.git certivity && cd certivity
+git clone https://github.com/jonathandemir/barelylegal-certivity.git && cd barelylegal-certivity
 scripts/setup                # auf main, Teilnehmerpaket + PDFs unter vendor/, .venv mit requirements.txt
 ```
 

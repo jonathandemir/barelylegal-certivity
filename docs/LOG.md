@@ -852,3 +852,7 @@ Kopfzeile: `### JJJJ-MM-TT HH:MM:SS +zone | [typ] titel | Autor @ Rechner | <bra
 ### 2026-10-25 13:32:22 +0100 | [change] Pitch-Plan fürs Finale (3 min + 2 min Q&A) | Jonathan @ MacBook-Pro-von-Jonathan | main@6ac125e +lokale Änderungen
 - docs/pitch/PITCH-PLAN.md: Ablauf mit Sprechtext je Jury-Kriterium (Lösung = eine Entscheidung: erst Anwendbarkeit aus dem Geltungsbereich, dann jeden Absatz lesen statt RAG; Demo auf dem Held-out-Stoßfänger aus experiments/runs ohne API; Beweis mit Held-out-Zahlen 7/7, 0.57 → 0.80 offen benannt, Sub-Goal 60/64, Richter ±4/190), Folienänderungen, Demo-Klickpfad, Q&A-Antworten.
 - Zahlen aus platform.json (H001, DRG-P, HSG8) und README.
+
+### 2026-10-25 14:01:34 +0100 | [decision] Umzug: Arbeits-Repo ist barelylegal-certivity, Abgabe-Repo archiviert | Jonathan @ MacBook-Pro-von-Jonathan | main@c4d9db6 +lokale Änderungen
+- Abgegeben wurde jonathandemir/certivity-hackathon (Team-Repo, seit 13:3x öffentlich). Damit der abgegebene Stand unverändert bleibt, ist es archiviert (nur lesbar). Weiterarbeit hier in jonathandemir/barelylegal-certivity, main beginnt mit einem Commit, der inhaltlich identisch mit certivity-hackathon@d6b235b ist (Baum geprüft). Volle Historie ließ sich nicht übertragen: GitHub Push Protection blockt die Commits d3d3b7b/a87a74f mit Omars gesperrtem Anthropic-Key; Entscheidung Jonathan: ohne Historie weiter (Weg B).
+- Anleitung für alle Checkouts in docs/STATUS.md (Abschnitt UMZUG). Neuer Checkout ~/projects/barelylegal-certivity: pytest 100/100.
